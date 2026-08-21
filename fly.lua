@@ -1,7 +1,7 @@
 --[[
     FINAL VERSION – FLY + NOCLIP + ESP (MM2) + WATERMARK
     X = FLY | Z = NOCLIP | C = ESP
-    Watermark: "KapitanBomba HACK" (150% większy, wyżej)
+    ESP pamięta graczy przez 20 sekund po schowaniu broni
 ]]
 
 local player = game.Players.LocalPlayer
@@ -13,7 +13,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- ===== WATERMARK (150% WIĘKSZY, WYŻEJ) =====
+-- ===== WATERMARK =====
 local function createWatermark()
     if game:GetService("CoreGui"):FindFirstChild("KapitanBombaWatermark") then
         return
@@ -66,7 +66,7 @@ local function createWatermark()
         Transparency = 0.02
     }):Play()
     
-    print("[WATERMARK] KapitanBomba HACK dodany (150% większy, wyżej)")
+    print("[WATERMARK] KapitanBomba HACK dodany")
 end
 
 -- ===== FLY =====
@@ -82,6 +82,7 @@ local noclipCon = nil
 local espEnabled = false
 local espCon = nil
 local espCache = {}
+local espMemory = {} -- Pamięć dla każdego gracza
 
 -- ===== FLY =====
 local function startFly()
@@ -155,33 +156,39 @@ local function toggleNoclip()
     end
 end
 
--- ===== ESP =====
+-- ===== ESP Z PAMIĘCIĄ (20 sekund) =====
 local function updateESP()
     for _, target in ipairs(Players:GetPlayers()) do
         if target == player then continue end
         
         local char = target.Character
-        if not char or not char.Parent then
-            local h = espCache[target]
-            if h then
-                pcall(h.Destroy, h)
-                espCache[target] = nil
-            end
-            continue
-        end
-        
-        local tool = char:FindFirstChildOfClass("Tool")
         local color = nil
         
-        if tool then
-            local name = tool.Name:lower()
-            if name:find("knife") or name:find("dagger") or name:find("blade") then
-                color = Color3.fromRGB(255, 0, 0)
-            elseif name:find("gun") or name:find("pistol") or name:find("revolver") then
-                color = Color3.fromRGB(0, 128, 255)
+        -- Sprawdź, czy gracz ma broń
+        if char and char.Parent then
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then
+                local name = tool.Name:lower()
+                if name:find("knife") or name:find("dagger") or name:find("blade") then
+                    color = Color3.fromRGB(255, 0, 0)
+                    espMemory[target] = {color = color, time = os.time() + 20}
+                elseif name:find("gun") or name:find("pistol") or name:find("revolver") then
+                    color = Color3.fromRGB(0, 128, 255)
+                    espMemory[target] = {color = color, time = os.time() + 20}
+                end
             end
         end
         
+        -- Jeśli gracz nie ma broni, sprawdź pamięć
+        if not color and espMemory[target] then
+            if os.time() < espMemory[target].time then
+                color = espMemory[target].color
+            else
+                espMemory[target] = nil
+            end
+        end
+        
+        -- Zastosuj highlight
         if color then
             local highlight = espCache[target]
             if highlight and highlight.Parent then
@@ -189,7 +196,7 @@ local function updateESP()
             else
                 highlight = Instance.new("Highlight")
                 highlight.Name = "ESP_Highlight"
-                highlight.Parent = char
+                highlight.Parent = char or workspace
                 highlight.FillColor = color
                 highlight.FillTransparency = 0.3
                 highlight.OutlineColor = color
@@ -210,7 +217,7 @@ end
 local function enableESP()
     if espEnabled then return end
     espEnabled = true
-    print("[ESP] ON")
+    print("[ESP] ON (pamięć 20s)")
     
     espCon = RunService.Heartbeat:Connect(function()
         if espEnabled then
@@ -233,6 +240,7 @@ local function disableESP()
         pcall(h.Destroy, h)
     end
     espCache = {}
+    espMemory = {}
 end
 
 -- ===== KLAWISZE =====
@@ -293,4 +301,5 @@ createWatermark()
 
 print("=== FINAL VERSION + WATERMARK ZAŁADOWANA ===")
 print("[X] FLY | [Z] NOCLIP | [C] ESP")
-print("Watermark: KapitanBomba HACK (150% większy, wyżej)")
+print("ESP: Czerwony = Morderca | Niebieski = Szeryf")
+print("ESP pamięta graczy przez 20 sekund po schowaniu broni")
