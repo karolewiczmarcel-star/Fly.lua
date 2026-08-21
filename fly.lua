@@ -1,7 +1,7 @@
 --[[
     FINAL VERSION – FLY + NOCLIP + ESP (MM2) + WATERMARK
     X = FLY | Z = NOCLIP | C = ESP
-    ESP pamięta graczy przez 20 sekund po schowaniu broni
+    Czerwony = Morderca | Niebieski = Szeryf | Zielony = Niewinni (w promieniu 50)
 ]]
 
 local player = game.Players.LocalPlayer
@@ -82,7 +82,8 @@ local noclipCon = nil
 local espEnabled = false
 local espCon = nil
 local espCache = {}
-local espMemory = {} -- Pamięć dla każdego gracza
+local espMemory = {}
+local ROLE_TIMEOUT = 20
 
 -- ===== FLY =====
 local function startFly()
@@ -156,7 +157,7 @@ local function toggleNoclip()
     end
 end
 
--- ===== ESP Z PAMIĘCIĄ (20 sekund) =====
+-- ===== ESP Z TRZEMA KOLORAMI =====
 local function updateESP()
     for _, target in ipairs(Players:GetPlayers()) do
         if target == player then continue end
@@ -170,11 +171,24 @@ local function updateESP()
             if tool then
                 local name = tool.Name:lower()
                 if name:find("knife") or name:find("dagger") or name:find("blade") then
-                    color = Color3.fromRGB(255, 0, 0)
-                    espMemory[target] = {color = color, time = os.time() + 20}
+                    color = Color3.fromRGB(255, 0, 0) -- Czerwony (Morderca)
+                    espMemory[target] = {color = color, role = "murderer", time = os.time() + ROLE_TIMEOUT}
                 elseif name:find("gun") or name:find("pistol") or name:find("revolver") then
-                    color = Color3.fromRGB(0, 128, 255)
-                    espMemory[target] = {color = color, time = os.time() + 20}
+                    color = Color3.fromRGB(0, 128, 255) -- Niebieski (Szeryf)
+                    espMemory[target] = {color = color, role = "sheriff", time = os.time() + ROLE_TIMEOUT}
+                end
+            else
+                -- Gracz nie ma broni -> Niewinny (Zielony)
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root and player.Character then
+                    local playerRoot = player.Character:FindFirstChild("HumanoidRootPart")
+                    if playerRoot then
+                        local dist = (root.Position - playerRoot.Position).Magnitude
+                        if dist < 50 then
+                            color = Color3.fromRGB(0, 255, 0) -- Zielony (Niewinny)
+                            espMemory[target] = {color = color, role = "innocent", time = os.time() + ROLE_TIMEOUT}
+                        end
+                    end
                 end
             end
         end
@@ -217,7 +231,7 @@ end
 local function enableESP()
     if espEnabled then return end
     espEnabled = true
-    print("[ESP] ON (pamięć 20s)")
+    print("[ESP] ON (3 kolory, pamięć 20s)")
     
     espCon = RunService.Heartbeat:Connect(function()
         if espEnabled then
@@ -301,5 +315,4 @@ createWatermark()
 
 print("=== FINAL VERSION + WATERMARK ZAŁADOWANA ===")
 print("[X] FLY | [Z] NOCLIP | [C] ESP")
-print("ESP: Czerwony = Morderca | Niebieski = Szeryf")
-print("ESP pamięta graczy przez 20 sekund po schowaniu broni")
+print("Czerwony = Morderca | Niebieski = Szeryf | Zielony = Niewinni (w promieniu 50)")
