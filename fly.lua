@@ -1,7 +1,9 @@
 --[[
-    Skrypt latania + NOCLIP (prosty i skuteczny)
-    X = latanie (W/S przód/tył, A/D lewo/prawo, Spacja góra, Shift dół)
-    Z = noclip (przechodzenie przez ściany) - włącz/wyłącz
+    FLY + NOCLIP + AUTO-ROTACJA
+    X = włącz/wyłącz latanie
+    Z = włącz/wyłącz noclip
+    WASD = ruch, Spacja = góra, Shift = dół
+    Postać automatycznie obraca się w kierunku kamery
 ]]
 
 local player = game.Players.LocalPlayer
@@ -11,24 +13,20 @@ local humanoid = character:WaitForChild("Humanoid")
 local camera = workspace.CurrentCamera
 
 local flying = false
-local flyConnection = nil
+local flyCon = nil
 local flySpeed = 50
 
-local noclipEnabled = false
-local noclipConnection = nil
+local noclip = false
+local noclipCon = nil
 
--- Funkcja do włączania/wyłączania noclipa
+-- FUNKCJA NOCLIP
 local function toggleNoclip()
-    noclipEnabled = not noclipEnabled
-    
-    if noclipEnabled then
-        print("NOCLIP włączony")
-        -- Uruchom pętlę, która co klatkę wyłącza kolizje
-        noclipConnection = game:GetService("RunService").Heartbeat:Connect(function()
-            if not noclipEnabled then return end
+    noclip = not noclip
+    if noclip then
+        print("Noclip ON")
+        noclipCon = game:GetService("RunService").Heartbeat:Connect(function()
+            if not noclip then return end
             if not character or not character.Parent then return end
-            
-            -- Wyłącz kolizje dla WSZYSTKICH części postaci
             for _, part in ipairs(character:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = false
@@ -36,12 +34,11 @@ local function toggleNoclip()
             end
         end)
     else
-        print("NOCLIP wyłączony")
-        if noclipConnection then
-            noclipConnection:Disconnect()
-            noclipConnection = nil
+        print("Noclip OFF")
+        if noclipCon then
+            noclipCon:Disconnect()
+            noclipCon = nil
         end
-        -- Przywróć kolizje
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = true
@@ -50,91 +47,87 @@ local function toggleNoclip()
     end
 end
 
--- Funkcja do latania
+-- FUNKCJA FLY
 local function startFly()
     if flying then return end
     flying = true
     workspace.Gravity = 0
-
-    flyConnection = game:GetService("RunService").Heartbeat:Connect(function()
+    
+    flyCon = game:GetService("RunService").Heartbeat:Connect(function()
         if not flying then return end
         if not character or not character.Parent then
             stopFly()
             return
         end
-
-        local moveDirection = Vector3.new(0, 0, 0)
+        
+        -- 🔥 OBRÓT POSTACI W KIERUNKU KAMERY (tylko w osi Y)
+        local camLook = camera.CFrame.LookVector
+        local camY = Vector3.new(camLook.X, 0, camLook.Z).Unit
+        if camY.Magnitude > 0 then
+            rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + camY)
+        end
+        
+        -- STEROWANIE LOTEM (względem kierunku postaci)
         local input = game:GetService("UserInputService")
-        local charDir = rootPart.CFrame.LookVector
-        local charRight = rootPart.CFrame.RightVector
-
-        if input:IsKeyDown(Enum.KeyCode.W) then
-            moveDirection = moveDirection + charDir
+        local move = Vector3.new(0, 0, 0)
+        local forward = rootPart.CFrame.LookVector
+        local right = rootPart.CFrame.RightVector
+        
+        if input:IsKeyDown(Enum.KeyCode.W) then move = move + forward end
+        if input:IsKeyDown(Enum.KeyCode.S) then move = move - forward end
+        if input:IsKeyDown(Enum.KeyCode.A) then move = move - right end
+        if input:IsKeyDown(Enum.KeyCode.D) then move = move + right end
+        if input:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0, 1, 0) end
+        if input:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0, 1, 0) end
+        
+        if move.Magnitude > 0 then
+            move = move.Unit * flySpeed
         end
-        if input:IsKeyDown(Enum.KeyCode.S) then
-            moveDirection = moveDirection - charDir
-        end
-        if input:IsKeyDown(Enum.KeyCode.A) then
-            moveDirection = moveDirection - charRight
-        end
-        if input:IsKeyDown(Enum.KeyCode.D) then
-            moveDirection = moveDirection + charRight
-        end
-        if input:IsKeyDown(Enum.KeyCode.Space) then
-            moveDirection = moveDirection + Vector3.new(0, 1, 0)
-        end
-        if input:IsKeyDown(Enum.KeyCode.LeftShift) then
-            moveDirection = moveDirection - Vector3.new(0, 1, 0)
-        end
-
-        if moveDirection.Magnitude > 0 then
-            moveDirection = moveDirection.Unit * flySpeed
-        end
-
-        rootPart.Velocity = moveDirection
+        
+        rootPart.Velocity = move
     end)
 end
 
 local function stopFly()
     if not flying then return end
     flying = false
-    if flyConnection then
-        flyConnection:Disconnect()
-        flyConnection = nil
+    if flyCon then
+        flyCon:Disconnect()
+        flyCon = nil
     end
     workspace.Gravity = 196.2
 end
 
--- Obsługa klawiszy
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-
+-- OBSŁUGA KLAWISZY
+game:GetService("UserInputService").InputBegan:Connect(function(input, gp)
+    if gp then return end
+    
     if input.KeyCode == Enum.KeyCode.X then
         if flying then
             stopFly()
-            print("Lot wyłączony")
+            print("Fly OFF")
         else
             startFly()
-            print("Lot włączony")
+            print("Fly ON")
         end
     end
-
+    
     if input.KeyCode == Enum.KeyCode.Z then
         toggleNoclip()
     end
 end)
 
--- Czyszczenie przy respawnie
+-- RESPAWN
 player.CharacterAdded:Connect(function(newChar)
     character = newChar
     rootPart = character:WaitForChild("HumanoidRootPart")
     humanoid = character:WaitForChild("Humanoid")
     if flying then stopFly() end
-    if noclipEnabled then
-        noclipEnabled = false
-        if noclipConnection then
-            noclipConnection:Disconnect()
-            noclipConnection = nil
+    if noclip then
+        noclip = false
+        if noclipCon then
+            noclipCon:Disconnect()
+            noclipCon = nil
         end
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -144,6 +137,8 @@ player.CharacterAdded:Connect(function(newChar)
     end
 end)
 
-print("Skrypt załadowany!")
-print("X = latanie | Z = noclip (włącz/wyłącz)")
-print("W = przód, S = tył, A/D = lewo/prawo, Spacja = góra, Shift = dół")
+print("=== SKRYPT ZAŁADOWANY ===")
+print("X = Fly | Z = Noclip")
+print("Postać automatycznie obraca się w kierunku kamery")
+print("W/S = przód/tył | A/D = lewo/prawo")
+print("Spacja = góra | Shift = dół")
