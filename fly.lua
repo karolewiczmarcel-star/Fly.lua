@@ -1,5 +1,5 @@
 --[[
-    ESP – NATYCHMIASTOWA REAKCJA NA BROŃ
+    ESP – SZUKA WSZYSTKICH CZĘŚCI W POSTACI
 ]]
 
 local player = game.Players.LocalPlayer
@@ -22,7 +22,7 @@ local noclipCon = nil
 local espEnabled = false
 local espCon = nil
 local espCache = {}
-local ESP_REFRESH = 0.5 -- co 0.5 sekundy
+local ESP_REFRESH = 0.5
 local ESP_RANGE = 500
 
 -- ===== FLY =====
@@ -100,7 +100,7 @@ local function toggleNoclip()
     end
 end
 
--- ===== ESP – NATYCHMIASTOWA REAKCJA =====
+-- ===== ESP – SZUKA WSZYSTKIEGO =====
 local function updateESP()
     for _, target in ipairs(Players:GetPlayers()) do
         if target == player then continue end
@@ -117,28 +117,34 @@ local function updateESP()
         
         local color = nil
         
-        -- 🔥 SZUKAMY BRONI OD NOWA ZA KAŻDYM RAZEM
-        local hasKnife = false
-        local hasGun = false
+        -- 🔥 SZUKAMY WSZYSTKICH DZIECI W POSTACI
+        local hasWeapon = false
+        local isKnife = false
+        local isGun = false
         
         for _, child in ipairs(char:GetDescendants()) do
-            if child:IsA("Tool") then
-                local name = child.Name:lower()
-                if name:find("knife") or name:find("dagger") or name:find("blade") or name:find("scythe") or name:find("sword") or name:find("axe") then
-                    hasKnife = true
+            local name = child.Name:lower()
+            
+            -- Sprawdź, czy to broń (Handle, MeshPart, Part, Tool)
+            if child:IsA("Tool") or child:IsA("MeshPart") or child:IsA("Part") or child:IsA("Handle") then
+                -- Jeśli to część broni, sprawdź nazwę
+                if name:find("knife") or name:find("dagger") or name:find("blade") or name:find("scythe") or name:find("sword") or name:find("axe") or name:find("machete") or name:find("katana") or name:find("sickle") then
+                    isKnife = true
+                    hasWeapon = true
                     break
-                elseif name:find("gun") or name:find("pistol") or name:find("revolver") or name:find("rifle") or name:find("shotgun") then
-                    hasGun = true
+                elseif name:find("gun") or name:find("pistol") or name:find("revolver") or name:find("rifle") or name:find("shotgun") or name:find("sniper") or name:find("blaster") or name:find("cannon") then
+                    isGun = true
+                    hasWeapon = true
                     break
                 end
             end
         end
         
-        -- 🔥 USTAW KOLOR NA PODSTAWIE BRONI
-        if hasKnife then
-            color = Color3.fromRGB(255, 0, 0) -- Czerwony (Morderca)
-        elseif hasGun then
-            color = Color3.fromRGB(0, 128, 255) -- Niebieski (Szeryf)
+        -- 🔥 USTAW KOLOR
+        if isKnife then
+            color = Color3.fromRGB(255, 0, 0) -- Czerwony
+        elseif isGun then
+            color = Color3.fromRGB(0, 128, 255) -- Niebieski
         else
             -- Niewinny – tylko w zasięgu
             local root = char:FindFirstChild("HumanoidRootPart")
@@ -265,4 +271,4 @@ end)
 
 print("=== SKRYPT ZAŁADOWANY ===")
 print("X = FLY | Z = NOCLIP | C = ESP")
-print("ESP reaguje natychmiast na broń")
+print("ESP szuka broni w całej postaci (nie tylko Tool)")
