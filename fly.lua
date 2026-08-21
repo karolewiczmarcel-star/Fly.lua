@@ -1,5 +1,5 @@
 --[[
-    Skrypt latania + noclip
+    Skrypt latania + NO CLIP (przechodzi przez wszystko)
     X = latanie (W/S przód/tył, A/D lewo/prawo, Spacja góra, Shift dół)
     Z = noclip (przechodzenie przez ściany) - włącz/wyłącz
 ]]
@@ -7,6 +7,7 @@
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local rootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
 local camera = workspace.CurrentCamera
 
 local flying = false
@@ -14,38 +15,65 @@ local flyConnection = nil
 local flySpeed = 50
 
 local noclipEnabled = false
-local noclipConnection = nil
 
 -- Funkcja do włączania/wyłączania noclipa
 local function toggleNoclip()
     noclipEnabled = not noclipEnabled
     
     if noclipEnabled then
-        print("Noclip włączony")
-        -- Wyłącz kolizję dla WSZYSTKICH części postaci
+        print("NOCLIP włączony (przechodzisz przez wszystko)")
+        -- 1. Wyłącz kolizje dla WSZYSTKICH części
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
             end
         end
-        -- Nasłuchuj na nowe części (np. przy respawnie)
-        noclipConnection = character.DescendantAdded:Connect(function(part)
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end)
+        
+        -- 2. Wyłącz kolizje z terenem (ważne dla grubych ścian)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Landed, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
+        
+        -- 3. Dodaj BodyVelocity do przepychania (opcjonalne, ale pomaga)
+        local bv = Instance.new("BodyVelocity")
+        bv.MaxForce = Vector3.new(1/0, 1/0, 1/0) -- nieskończona siła
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.Parent = rootPart
+        rootPart:SetAttribute("noclipBV", bv)
+        
     else
-        print("Noclip wyłączony")
-        if noclipConnection then
-            noclipConnection:Disconnect()
-            noclipConnection = nil
-        end
-        -- Przywróć kolizję dla WSZYSTKICH części
+        print("NOCLIP wyłączony")
+        -- 1. Przywróć kolizje
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = true
             end
         end
+        
+        -- 2. Przywróć stany humanoida
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Landed, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+        
+        -- 3. Usuń BodyVelocity
+        local bv = rootPart:FindFirstChild("noclipBV")
+        if bv then bv:Destroy() end
     end
 end
 
@@ -125,16 +153,21 @@ end)
 player.CharacterAdded:Connect(function(newChar)
     character = newChar
     rootPart = character:WaitForChild("HumanoidRootPart")
+    humanoid = character:WaitForChild("Humanoid")
     if flying then stopFly() end
     if noclipEnabled then
         noclipEnabled = false
-        if noclipConnection then
-            noclipConnection:Disconnect()
-            noclipConnection = nil
+        -- Posprzątaj po noclipie
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
         end
+        local bv = rootPart:FindFirstChild("noclipBV")
+        if bv then bv:Destroy() end
     end
 end)
 
 print("Skrypt załadowany!")
-print("X = latanie | Z = noclip (włącz/wyłącz)")
+print("X = latanie | Z = noclip (włącz/wyłącz) - działa przez wszystko")
 print("W = przód, S = tył, A/D = lewo/prawo, Spacja = góra, Shift = dół")
