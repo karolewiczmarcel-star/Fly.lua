@@ -1,8 +1,8 @@
 --[[
-    FLY + NOCLIP + ESP (MM2) + ROTACJA + PELNE STEROWANIE 3D
+    FINAL VERSION – FLY + NOCLIP + ESP (MM2) + WATERMARK
     X = FLY | Z = NOCLIP | C = ESP
-    W = przód (tam gdzie patrzysz) | S = tył | A/D = boki
-    Usunięto: Spacja (góra) i Shift (dół)
+    Czerwony = Morderca | Niebieski = Szeryf | Zielony = Niewinni (100)
+    Prędkość lotu: 50 (wszystkie kierunki)
 ]]
 
 local player = game.Players.LocalPlayer
@@ -73,7 +73,7 @@ end
 -- ===== FLY =====
 local flying = false
 local flyCon = nil
-local flySpeed = 50
+local flySpeed = 50  -- 🔥 PRĘDKOŚĆ 50
 
 -- ===== NOCLIP =====
 local noclip = false
@@ -99,40 +99,31 @@ local function startFly()
             return
         end
         
-        -- 🔥 ROTACJA POSTACI W KIERUNKU KAMERY (PEŁNA, GÓRA/DÓŁ)
+        -- Rotacja postaci w kierunku kamery
         local camLook = camera.CFrame.LookVector
         local targetCF = CFrame.lookAt(rootPart.Position, rootPart.Position + camLook)
         rootPart.CFrame = targetCF
         
-        -- 🔥 PELNE STEROWANIE 3D (W/S/A/D)
+        -- Sterowanie 3D (W/S/A/D)
         local input = UserInputService
         local move = Vector3.new(0, 0, 0)
-        
-        -- Kierunki względem postaci (która jest zrotowana za kamerą)
         local forward = rootPart.CFrame.LookVector
         local right = rootPart.CFrame.RightVector
-        local up = rootPart.CFrame.UpVector
         
-        -- W = przód (tam gdzie patrzysz)
         if input:IsKeyDown(Enum.KeyCode.W) then
             move = move + forward
         end
-        -- S = tył
         if input:IsKeyDown(Enum.KeyCode.S) then
             move = move - forward
         end
-        -- A = lewo
         if input:IsKeyDown(Enum.KeyCode.A) then
             move = move - right
         end
-        -- D = prawo
         if input:IsKeyDown(Enum.KeyCode.D) then
             move = move + right
         end
         
-        -- 🔥 USUNIĘTO: Spacja (góra) i Shift (dół)
-        -- Teraz W/S/A/D sterują lotem w 3D
-        
+        -- Normalizacja i prędkość
         if move.Magnitude > 0 then
             move = move.Unit * flySpeed
         end
@@ -179,7 +170,7 @@ local function toggleNoclip()
     end
 end
 
--- ===== ESP Z TRZEMA KOLORAMI (ZASIĘG 100) =====
+-- ===== ESP Z TRZEMA KOLORAMI =====
 local function updateESP()
     for _, target in ipairs(Players:GetPlayers()) do
         if target == player then continue end
@@ -193,10 +184,10 @@ local function updateESP()
                 local name = tool.Name:lower()
                 if name:find("knife") or name:find("dagger") or name:find("blade") then
                     color = Color3.fromRGB(255, 0, 0)
-                    espMemory[target] = {color = color, role = "murderer", time = os.time() + ROLE_TIMEOUT}
+                    espMemory[target] = {color = color, time = os.time() + ROLE_TIMEOUT}
                 elseif name:find("gun") or name:find("pistol") or name:find("revolver") then
                     color = Color3.fromRGB(0, 128, 255)
-                    espMemory[target] = {color = color, role = "sheriff", time = os.time() + ROLE_TIMEOUT}
+                    espMemory[target] = {color = color, time = os.time() + ROLE_TIMEOUT}
                 end
             else
                 local root = char:FindFirstChild("HumanoidRootPart")
@@ -206,7 +197,7 @@ local function updateESP()
                         local dist = (root.Position - playerRoot.Position).Magnitude
                         if dist < 100 then
                             color = Color3.fromRGB(0, 255, 0)
-                            espMemory[target] = {color = color, role = "innocent", time = os.time() + ROLE_TIMEOUT}
+                            espMemory[target] = {color = color, time = os.time() + ROLE_TIMEOUT}
                         end
                     end
                 end
@@ -224,7 +215,8 @@ local function updateESP()
         if color then
             local highlight = espCache[target]
             if highlight and highlight.Parent then
-                highlight.Color3 = color
+                highlight.FillColor = color
+                highlight.OutlineColor = color
             else
                 highlight = Instance.new("Highlight")
                 highlight.Name = "ESP_Highlight"
@@ -333,6 +325,5 @@ createWatermark()
 
 print("=== FINAL VERSION + WATERMARK ZAŁADOWANA ===")
 print("[X] FLY | [Z] NOCLIP | [C] ESP")
-print("W = przód | S = tył | A/D = boki (w 3D)")
-print("Usunięto: Spacja (góra) i Shift (dół)")
+print("W/S/A/D = wszystkie kierunki z prędkością 50")
 print("Czerwony = Morderca | Niebieski = Szeryf | Zielony = Niewinni (100)")
