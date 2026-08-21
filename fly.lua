@@ -1,9 +1,9 @@
 --[[
-    FLY + NOCLIP + AUTO-ROTACJA
+    FLY + NOCLIP + PŁYNNA ROTACJA
     X = włącz/wyłącz latanie
     Z = włącz/wyłącz noclip
-    WASD = ruch, Spacja = góra, Shift = dół
-    Postać automatycznie obraca się w kierunku kamery
+    Postać płynnie obraca się w kierunku kamery
+    W = lecisz tam, gdzie patrzysz (w tym w górę/dół)
 ]]
 
 local player = game.Players.LocalPlayer
@@ -19,7 +19,7 @@ local flySpeed = 50
 local noclip = false
 local noclipCon = nil
 
--- FUNKCJA NOCLIP
+-- NOCLIP
 local function toggleNoclip()
     noclip = not noclip
     if noclip then
@@ -47,7 +47,7 @@ local function toggleNoclip()
     end
 end
 
--- FUNKCJA FLY
+-- FLY + PŁYNNA ROTACJA
 local function startFly()
     if flying then return end
     flying = true
@@ -60,25 +60,41 @@ local function startFly()
             return
         end
         
-        -- 🔥 OBRÓT POSTACI W KIERUNKU KAMERY (tylko w osi Y)
-        local camLook = camera.CFrame.LookVector
-        local camY = Vector3.new(camLook.X, 0, camLook.Z).Unit
-        if camY.Magnitude > 0 then
-            rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + camY)
-        end
+        -- 🔥 PŁYNNA ROTACJA POSTACI (w kierunku kamery)
+        local camCF = camera.CFrame
+        local targetCF = CFrame.new(rootPart.Position, rootPart.Position + camCF.LookVector)
+        rootPart.CFrame = rootPart.CFrame:Lerp(targetCF, 0.3) -- 0.3 = płynność
         
-        -- STEROWANIE LOTEM (względem kierunku postaci)
+        -- 🔥 LECISZ TAM, GDZIE PATRZY POSTAĆ (czyli kamera)
         local input = game:GetService("UserInputService")
         local move = Vector3.new(0, 0, 0)
         local forward = rootPart.CFrame.LookVector
         local right = rootPart.CFrame.RightVector
+        local up = rootPart.CFrame.UpVector
         
-        if input:IsKeyDown(Enum.KeyCode.W) then move = move + forward end
-        if input:IsKeyDown(Enum.KeyCode.S) then move = move - forward end
-        if input:IsKeyDown(Enum.KeyCode.A) then move = move - right end
-        if input:IsKeyDown(Enum.KeyCode.D) then move = move + right end
-        if input:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0, 1, 0) end
-        if input:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0, 1, 0) end
+        -- W = lecisz w kierunku patrzenia (do przodu)
+        if input:IsKeyDown(Enum.KeyCode.W) then
+            move = move + forward
+        end
+        -- S = lecisz do tyłu
+        if input:IsKeyDown(Enum.KeyCode.S) then
+            move = move - forward
+        end
+        -- A/D = lewo/prawo
+        if input:IsKeyDown(Enum.KeyCode.A) then
+            move = move - right
+        end
+        if input:IsKeyDown(Enum.KeyCode.D) then
+            move = move + right
+        end
+        -- Spacja = góra (względem postaci)
+        if input:IsKeyDown(Enum.KeyCode.Space) then
+            move = move + up
+        end
+        -- Shift = dół
+        if input:IsKeyDown(Enum.KeyCode.LeftShift) then
+            move = move - up
+        end
         
         if move.Magnitude > 0 then
             move = move.Unit * flySpeed
@@ -139,6 +155,7 @@ end)
 
 print("=== SKRYPT ZAŁADOWANY ===")
 print("X = Fly | Z = Noclip")
-print("Postać automatycznie obraca się w kierunku kamery")
-print("W/S = przód/tył | A/D = lewo/prawo")
+print("Postać płynnie obraca się w kierunku kamery")
+print("W = lecisz w kierunku patrzenia (góra/dół też)")
+print("S = tył | A/D = lewo/prawo")
 print("Spacja = góra | Shift = dół")
