@@ -1,5 +1,5 @@
 --[[
-    ESP – SZUKA PO KSZTAŁCIE (MeshId, Size)
+    ESP – SZUKA TYLKO AKTYWNEJ BRONI (w ręce)
 ]]
 
 local player = game.Players.LocalPlayer
@@ -100,59 +100,54 @@ local function toggleNoclip()
     end
 end
 
--- ===== ESP – SZUKA PO KSZTAŁCIE =====
-local function isKnifeShape(part)
-    -- Sprawdź, czy część wygląda jak nóż (długi, cienki, spiczasty)
-    if part:IsA("MeshPart") then
-        local size = part.Size
-        -- Nóż jest zazwyczaj długi w jednej osi, cienki w pozostałych
-        if size.X > 1.5 and size.Y < 0.8 and size.Z < 0.8 then
-            return true
-        end
-        if size.Z > 1.5 and size.X < 0.8 and size.Y < 0.8 then
-            return true
-        end
-        -- Sprawdź MeshId (często noże mają specyficzne ID)
-        if part.MeshId and (part.MeshId:find("knife") or part.MeshId:find("dagger") or part.MeshId:find("blade")) then
-            return true
-        end
-    end
-    -- Sprawdź, czy część ma Handle (często broń ma Handle jako rodzic)
-    if part.Parent and part.Parent:FindFirstChild("Handle") then
-        return true
-    end
-    return false
-end
-
-local function isGunShape(part)
-    -- Sprawdź, czy część wygląda jak pistolet (krótszy, szerszy)
-    if part:IsA("MeshPart") then
-        local size = part.Size
-        -- Pistolet jest zazwyczaj krótszy i szerszy niż nóż
-        if size.X > 0.8 and size.X < 2 and size.Y > 0.5 and size.Y < 1.5 and size.Z > 0.5 and size.Z < 1.5 then
-            return true
-        end
-        -- Sprawdź MeshId
-        if part.MeshId and (part.MeshId:find("gun") or part.MeshId:find("pistol") or part.MeshId:find("revolver")) then
-            return true
-        end
-    end
-    return false
-end
-
-local function findWeaponByShape(char)
+-- ===== ESP – SZUKA TYLKO BRONI W RĘCE =====
+local function findActiveWeapon(char)
     if not char then return nil, nil end
     
-    for _, child in ipairs(char:GetDescendants()) do
-        if child:IsA("MeshPart") or child:IsA("Part") then
-            if isKnifeShape(child) then
-                return "knife", child
-            end
-            if isGunShape(child) then
-                return "gun", child
+    -- Sprawdź wszystkie Tool w postaci
+    for _, child in ipairs(char:GetChildren()) do
+        if child:IsA("Tool") then
+            -- Sprawdź, czy Tool ma Handle (aktywna broń)
+            local handle = child:FindFirstChild("Handle")
+            if handle then
+                -- Sprawdź kształt Handle
+                if handle:IsA("BasePart") or handle:IsA("MeshPart") then
+                    local size = handle.Size
+                    -- Nóż = długi i cienki
+                    if (size.X > 1.5 and size.Y < 0.8 and size.Z < 0.8) or
+                       (size.Z > 1.5 and size.X < 0.8 and size.Y < 0.8) then
+                        return "knife", child
+                    end
+                    -- Pistolet = krótki i szeroki
+                    if size.X > 0.8 and size.X < 2 and size.Y > 0.5 and size.Y < 1.5 and size.Z > 0.5 and size.Z < 1.5 then
+                        return "gun", child
+                    end
+                end
             end
         end
     end
+    
+    -- Jeśli nie znaleziono Tool z Handle, sprawdź czy gracz ma coś w ręce (MeshPart bezpośrednio)
+    for _, child in ipairs(char:GetDescendants()) do
+        if child:IsA("MeshPart") or child:IsA("Part") then
+            -- Sprawdź, czy część jest w okolicy dłoni (przybliżona pozycja)
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local dist = (child.Position - root.Position).Magnitude
+                if dist < 3 then -- Broń w ręce jest blisko rootPart
+                    local size = child.Size
+                    if (size.X > 1.5 and size.Y < 0.8 and size.Z < 0.8) or
+                       (size.Z > 1.5 and size.X < 0.8 and size.Y < 0.8) then
+                        return "knife", child
+                    end
+                    if size.X > 0.8 and size.X < 2 and size.Y > 0.5 and size.Y < 1.5 and size.Z > 0.5 and size.Z < 1.5 then
+                        return "gun", child
+                    end
+                end
+            end
+        end
+    end
+    
     return nil, nil
 end
 
@@ -171,14 +166,14 @@ local function updateESP()
         end
         
         local color = nil
-        local weaponType, weapon = findWeaponByShape(char)
+        local weaponType, weapon = findActiveWeapon(char)
         
         if weaponType == "knife" then
             color = Color3.fromRGB(255, 0, 0) -- Czerwony
-            print("[DEBUG] " .. target.Name .. " ma NÓŻ (kształt)")
+            print("[DEBUG] " .. target.Name .. " ma NÓŻ w ręce")
         elseif weaponType == "gun" then
             color = Color3.fromRGB(0, 128, 255) -- Niebieski
-            print("[DEBUG] " .. target.Name .. " ma PISTOLET (kształt)")
+            print("[DEBUG] " .. target.Name .. " ma PISTOLET w ręce")
         else
             -- Niewinny – tylko w zasięgu
             local root = char:FindFirstChild("HumanoidRootPart")
@@ -222,7 +217,7 @@ end
 local function enableESP()
     if espEnabled then return end
     espEnabled = true
-    print("[ESP] ON (szukanie po kształcie)")
+    print("[ESP] ON (szukam tylko broni w ręce)")
     
     updateESP()
     espCon = RunService.Heartbeat:Connect(function()
@@ -304,4 +299,4 @@ end)
 
 print("=== SKRYPT ZAŁADOWANY ===")
 print("X = FLY | Z = NOCLIP | C = ESP")
-print("ESP szuka po KSZTAŁCIE (długi = nóż, krótki/szeroki = pistolet)")
+print("ESP szuka TYLKO BRONI W RĘCE (ignoruje broń na plecach)")
