@@ -1,7 +1,8 @@
 --[[
-    FINAL VERSION – FLY + NOCLIP + ESP (MM2) + WATERMARK
+    FLY + NOCLIP + ESP (MM2) + ROTACJA + LOT W KIERUNKU PATRZENIA
     X = FLY | Z = NOCLIP | C = ESP
-    Czerwony = Morderca | Niebieski = Szeryf | Zielony = Niewinni (w promieniu 50)
+    W = lecisz tam, gdzie patrzysz (góra/dół też)
+    Usunięto: Spacja (góra), Shift (dół)
 ]]
 
 local player = game.Players.LocalPlayer
@@ -85,7 +86,7 @@ local espCache = {}
 local espMemory = {}
 local ROLE_TIMEOUT = 20
 
--- ===== FLY =====
+-- ===== FLY Z ROTACJĄ I LOTEM W KIERUNKU PATRZENIA =====
 local function startFly()
     if flying then return end
     flying = true
@@ -98,22 +99,22 @@ local function startFly()
             return
         end
         
+        -- 🔥 ROTACJA POSTACI W KIERUNKU KAMERY (PEŁNA, GÓRA/DÓŁ)
+        local camLook = camera.CFrame.LookVector
+        local targetCF = CFrame.lookAt(rootPart.Position, rootPart.Position + camLook)
+        rootPart.CFrame = targetCF
+        
+        -- 🔥 LOT TYLKO POD W (w kierunku patrzenia)
         local input = UserInputService
         local move = Vector3.new(0, 0, 0)
-        local forward = rootPart.CFrame.LookVector
-        local right = rootPart.CFrame.RightVector
-        local up = rootPart.CFrame.UpVector
         
-        if input:IsKeyDown(Enum.KeyCode.W) then move = move + forward end
-        if input:IsKeyDown(Enum.KeyCode.S) then move = move - forward end
-        if input:IsKeyDown(Enum.KeyCode.A) then move = move - right end
-        if input:IsKeyDown(Enum.KeyCode.D) then move = move + right end
-        if input:IsKeyDown(Enum.KeyCode.Space) then move = move + up end
-        if input:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - up end
-        
-        if move.Magnitude > 0 then
-            move = move.Unit * flySpeed
+        if input:IsKeyDown(Enum.KeyCode.W) then
+            local forward = rootPart.CFrame.LookVector
+            move = move + forward * flySpeed
         end
+        
+        -- 🔥 USUNIĘTO: Spacja (góra) i Shift (dół)
+        -- Teraz tylko W steruje lotem w kierunku patrzenia
         
         rootPart.Velocity = move
     end)
@@ -157,7 +158,7 @@ local function toggleNoclip()
     end
 end
 
--- ===== ESP Z TRZEMA KOLORAMI =====
+-- ===== ESP Z TRZEMA KOLORAMI (ZASIĘG 100) =====
 local function updateESP()
     for _, target in ipairs(Players:GetPlayers()) do
         if target == player then continue end
@@ -165,27 +166,25 @@ local function updateESP()
         local char = target.Character
         local color = nil
         
-        -- Sprawdź, czy gracz ma broń
         if char and char.Parent then
             local tool = char:FindFirstChildOfClass("Tool")
             if tool then
                 local name = tool.Name:lower()
                 if name:find("knife") or name:find("dagger") or name:find("blade") then
-                    color = Color3.fromRGB(255, 0, 0) -- Czerwony (Morderca)
+                    color = Color3.fromRGB(255, 0, 0)
                     espMemory[target] = {color = color, role = "murderer", time = os.time() + ROLE_TIMEOUT}
                 elseif name:find("gun") or name:find("pistol") or name:find("revolver") then
-                    color = Color3.fromRGB(0, 128, 255) -- Niebieski (Szeryf)
+                    color = Color3.fromRGB(0, 128, 255)
                     espMemory[target] = {color = color, role = "sheriff", time = os.time() + ROLE_TIMEOUT}
                 end
             else
-                -- Gracz nie ma broni -> Niewinny (Zielony)
                 local root = char:FindFirstChild("HumanoidRootPart")
                 if root and player.Character then
                     local playerRoot = player.Character:FindFirstChild("HumanoidRootPart")
                     if playerRoot then
                         local dist = (root.Position - playerRoot.Position).Magnitude
-                        if dist < 50 then
-                            color = Color3.fromRGB(0, 255, 0) -- Zielony (Niewinny)
+                        if dist < 100 then
+                            color = Color3.fromRGB(0, 255, 0)
                             espMemory[target] = {color = color, role = "innocent", time = os.time() + ROLE_TIMEOUT}
                         end
                     end
@@ -193,7 +192,6 @@ local function updateESP()
             end
         end
         
-        -- Jeśli gracz nie ma broni, sprawdź pamięć
         if not color and espMemory[target] then
             if os.time() < espMemory[target].time then
                 color = espMemory[target].color
@@ -202,7 +200,6 @@ local function updateESP()
             end
         end
         
-        -- Zastosuj highlight
         if color then
             local highlight = espCache[target]
             if highlight and highlight.Parent then
@@ -231,7 +228,7 @@ end
 local function enableESP()
     if espEnabled then return end
     espEnabled = true
-    print("[ESP] ON (3 kolory, pamięć 20s)")
+    print("[ESP] ON (3 kolory, pamięć 20s, zasięg 100)")
     
     espCon = RunService.Heartbeat:Connect(function()
         if espEnabled then
@@ -315,4 +312,6 @@ createWatermark()
 
 print("=== FINAL VERSION + WATERMARK ZAŁADOWANA ===")
 print("[X] FLY | [Z] NOCLIP | [C] ESP")
-print("Czerwony = Morderca | Niebieski = Szeryf | Zielony = Niewinni (w promieniu 50)")
+print("W = lecisz tam, gdzie patrzysz (góra/dół też)")
+print("Usunięto: Spacja (góra) i Shift (dół)")
+print("Czerwony = Morderca | Niebieski = Szeryf | Zielony = Niewinni (100)")
