@@ -1,7 +1,13 @@
 --[[
-    FLY (X) + NOCLIP (Z) + ESP (C) + FLING MENU (J)
+    IRIS IMGUI – FLY (X) + NOCLIP (Z) + ESP (C) + FLING (J)
+    Wymaga: Iris v2.5.0+ (załadowane przez loadstring)
 ]]
 
+-- ===== ZAŁADOWANIE IRIS =====
+local Iris = loadstring(game:HttpGet("https://raw.githubusercontent.com/paradoxum-games/iris/main/out.lua"))()
+Iris:Init()
+
+-- ===== STANY =====
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local rootPart = character:WaitForChild("HumanoidRootPart")
@@ -11,22 +17,29 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- ===== STANY =====
+-- ===== FLY =====
 local flying = false
 local flyCon = nil
 local flySpeed = 50
 
+-- ===== NOCLIP =====
 local noclip = false
 local noclipCon = nil
 
+-- ===== ESP =====
 local espEnabled = false
 local espCon = nil
 local espCache = {}
 local ESP_REFRESH = 0.5
 local ESP_RANGE = 500
 
-local menuOpen = false
-local menuGui = nil
+-- ===== FLING =====
+local selectedPlayer = nil
+local flingEnabled = false
+
+-- ===== IRIS STANY =====
+local menuVisible = Iris.State(true)
+local selectedPlayerState = Iris.State(nil)
 
 -- ===== FLY =====
 local function startFly()
@@ -242,158 +255,77 @@ local function flingPlayer(target)
     print("[FLING] " .. target.Name .. " został wyrzucony!")
 end
 
--- ===== MENU POD J =====
-local function createMenu()
-    if menuGui then return end
+-- ===== IRIS MENU =====
+local function createIrisMenu()
+    -- Ukryj domyślny kursor Robloxa, żeby nie przeszkadzał
+    UserInputService.MouseIconEnabled = false
     
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "FlingMenu"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = player:WaitForChild("PlayerGui")
-    
-    local frame = Instance.new("Frame")
-    frame.Name = "MenuFrame"
-    frame.Size = UDim2.new(0, 260, 0, 300)
-    frame.Position = UDim2.new(0.5, -130, 0.5, -150)
-    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-    frame.BackgroundTransparency = 0.1
-    frame.BorderSizePixel = 0
-    frame.Visible = false
-    frame.Parent = screenGui
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = frame
-    
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(255, 0, 0)
-    stroke.Thickness = 2
-    stroke.Transparency = 0.3
-    stroke.Parent = frame
-    
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Position = UDim2.new(0, 0, 0, 0)
-    title.BackgroundTransparency = 1
-    title.Text = "🔥 FLING MENU 🔥"
-    title.TextColor3 = Color3.fromRGB(255, 0, 0)
-    title.TextSize = 16
-    title.Font = Enum.Font.GothamBold
-    title.Parent = frame
-    
-    local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 26, 0, 26)
-    closeBtn.Position = UDim2.new(1, -30, 0, 2)
-    closeBtn.BackgroundTransparency = 1
-    closeBtn.Text = "✕"
-    closeBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
-    closeBtn.TextSize = 16
-    closeBtn.Font = Enum.Font.GothamBold
-    closeBtn.Parent = frame
-    closeBtn.Activated:Connect(function()
-        toggleMenu()
+    Iris:Connect(function()
+        -- Główne okno – sterowanie
+        Iris.Window({ "KapitanBomba HACK" }, { 
+            size = Iris.State(Vector2.new(350, 450)),
+            position = Iris.State(Vector2.new(100, 100))
+        })
+        
+        -- Sekcja: Sterowanie
+        Iris.Separator()
+        Iris.Text({ "STEROWANIE:" })
+        Iris.Text({ "X = Fly | Z = Noclip | C = ESP" })
+        Iris.Separator()
+        
+        -- Sekcja: Status
+        Iris.Text({ "STATUS:" })
+        Iris.Text({ "Fly: " .. (flying and "ON" or "OFF") })
+        Iris.Text({ "Noclip: " .. (noclip and "ON" or "OFF") })
+        Iris.Text({ "ESP: " .. (espEnabled and "ON" or "OFF") })
+        Iris.Separator()
+        
+        -- Sekcja: Wybór gracza do flinga
+        Iris.Text({ "WYBIERZ GRACZA DO FLINGA:" })
+        
+        -- Lista graczy (przyciski)
+        local players = {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player then
+                table.insert(players, p)
+            end
+        end
+        
+        -- Sortuj alfabetycznie
+        table.sort(players, function(a, b) return a.Name < b.Name end)
+        
+        for _, p in ipairs(players) do
+            local btnText = p.Name
+            if selectedPlayer == p then
+                btnText = "▶ " .. p.Name .. " ◀"
+            end
+            
+            local clicked = Iris.Button({ btnText })
+            if clicked then
+                selectedPlayer = p
+                print("[MENU] Wybrano: " .. p.Name)
+            end
+        end
+        
+        Iris.Separator()
+        
+        -- Przycisk FLING
+        local flingBtn = Iris.Button({ "🔥 FLING WYBRANEGO GRACZA" })
+        if flingBtn then
+            if selectedPlayer then
+                flingPlayer(selectedPlayer)
+            else
+                print("[MENU] Brak wybranego gracza!")
+            end
+        end
+        
+        -- Jeśli nie ma graczy
+        if #players == 0 then
+            Iris.Text({ "❌ Brak innych graczy na serwerze" })
+        end
+        
+        Iris.End()
     end)
-    
-    local listFrame = Instance.new("ScrollingFrame")
-    listFrame.Name = "PlayerList"
-    listFrame.Size = UDim2.new(1, -10, 1, -40)
-    listFrame.Position = UDim2.new(0, 5, 0, 35)
-    listFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-    listFrame.BackgroundTransparency = 0.3
-    listFrame.BorderSizePixel = 0
-    listFrame.ScrollBarThickness = 4
-    listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    listFrame.Parent = frame
-    
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, 4)
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Parent = listFrame
-    
-    menuGui = {
-        Frame = frame,
-        ScreenGui = screenGui,
-        ListFrame = listFrame,
-        ListLayout = listLayout
-    }
-    
-    updatePlayerList()
-end
-
-local function updatePlayerList()
-    if not menuGui then return end
-    
-    for _, child in ipairs(menuGui.ListFrame:GetChildren()) do
-        if child:IsA("TextButton") then
-            child:Destroy()
-        end
-    end
-    
-    local players = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player then
-            table.insert(players, p)
-        end
-    end
-    
-    table.sort(players, function(a, b) return a.Name < b.Name end)
-    
-    for _, p in ipairs(players) do
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -5, 0, 28)
-        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-        btn.Text = p.Name
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.TextSize = 13
-        btn.Font = Enum.Font.GothamBold
-        btn.Parent = menuGui.ListFrame
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 4)
-        corner.Parent = btn
-        
-        btn.Activated:Connect(function()
-            flingPlayer(p)
-        end)
-        
-        btn.MouseEnter:Connect(function()
-            btn.BackgroundColor3 = Color3.fromRGB(60, 30, 30)
-        end)
-        btn.MouseLeave:Connect(function()
-            btn.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-        end)
-    end
-    
-    local count = #players
-    menuGui.ListFrame.CanvasSize = UDim2.new(0, 0, 0, count * 32 + 10)
-end
-
-local function toggleMenu()
-    if not menuGui then
-        createMenu()
-    end
-    menuOpen = not menuOpen
-    menuGui.Frame.Visible = menuOpen
-    if menuOpen then
-        print("[MENU] Otwarto")
-        updatePlayerList()
-        if not menuGui._refreshCon then
-            menuGui._refreshCon = RunService.Heartbeat:Connect(function()
-                if menuOpen and menuGui then
-                    if not menuGui._lastUpdate or tick() - menuGui._lastUpdate > 2 then
-                        updatePlayerList()
-                        menuGui._lastUpdate = tick()
-                    end
-                end
-            end)
-        end
-    else
-        print("[MENU] Zamknięto")
-        if menuGui and menuGui._refreshCon then
-            menuGui._refreshCon:Disconnect()
-            menuGui._refreshCon = nil
-        end
-    end
 end
 
 -- ===== KLAWISZE =====
@@ -412,8 +344,9 @@ UserInputService.InputBegan:Connect(function(input, gp)
         if espEnabled then disableESP() else enableESP() end
     end
     
+    -- J = pokaż/ukryj menu Iris (domyślnie widoczne)
     if input.KeyCode == Enum.KeyCode.J then
-        toggleMenu()
+        menuVisible:set(not menuVisible:get())
     end
 end)
 
@@ -443,6 +376,10 @@ player.CharacterAdded:Connect(function(newChar)
     end
 end)
 
-print("=== SKRYPT ZAŁADOWANY ===")
+-- ===== START =====
+createIrisMenu()
+
+print("=== IRIS MENU ZAŁADOWANE ===")
 print("X = FLY | Z = NOCLIP | C = ESP")
-print("J = FLING MENU (lista graczy)")
+print("J = pokaż/ukryj menu")
+print("Wybierz gracza w menu i kliknij FLING")
