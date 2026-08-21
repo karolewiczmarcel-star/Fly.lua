@@ -1,12 +1,7 @@
 --[[
-    MEGA SKRYPT DO MM2
-    X = włącz/wyłącz FLY
-    Z = włącz/wyłącz NOCLIP
-    C = włącz/wyłącz ESP (MM2)
-    
-    FLY: WASD = ruch, Spacja = góra, Shift = dół
-    NOCLIP: przechodzenie przez ściany
-    ESP: Morderca = Czerwony, Szeryf = Niebieski
+    FINAL VERSION – FLY + NOCLIP + ESP (MM2) + WATERMARK
+    X = FLY | Z = NOCLIP | C = ESP
+    Watermark: "KapitanBomba HACK" (czerwony, prawy górny róg)
 ]]
 
 local player = game.Players.LocalPlayer
@@ -17,6 +12,42 @@ local camera = workspace.CurrentCamera
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+
+-- ===== WATERMARK =====
+local function createWatermark()
+    -- Sprawdź, czy już istnieje
+    if game:GetService("CoreGui"):FindFirstChild("KapitanBombaWatermark") then
+        return
+    end
+    
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "KapitanBombaWatermark"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = game:GetService("CoreGui")
+    
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Name = "WatermarkLabel"
+    textLabel.Size = UDim2.new(0, 200, 0, 30)
+    textLabel.Position = UDim2.new(1, -210, 0, 10) -- Prawy górny róg
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = "KapitanBomba HACK"
+    textLabel.TextColor3 = Color3.fromRGB(255, 0, 0) -- Czerwony
+    textLabel.TextSize = 18
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.TextStrokeTransparency = 0.5
+    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    textLabel.TextXAlignment = Enum.TextXAlignment.Right
+    textLabel.Parent = screenGui
+    
+    -- Dodaj cień (efekt neonu)
+    local shadow = Instance.new("UIStroke")
+    shadow.Color = Color3.fromRGB(255, 0, 0)
+    shadow.Thickness = 2
+    shadow.Transparency = 0.3
+    shadow.Parent = textLabel
+    
+    print("[WATERMARK] KapitanBomba HACK w prawym górnym rogu")
+end
 
 -- ===== FLY =====
 local flying = false
@@ -29,10 +60,10 @@ local noclipCon = nil
 
 -- ===== ESP =====
 local espEnabled = false
-local espConnections = {}
-local espHighlights = {}
+local espCon = nil
+local espCache = {}
 
--- ===== FLY FUNKCJE =====
+-- ===== FLY =====
 local function startFly()
     if flying then return end
     flying = true
@@ -76,7 +107,7 @@ local function stopFly()
     workspace.Gravity = 196.2
 end
 
--- ===== NOCLIP FUNKCJE =====
+-- ===== NOCLIP =====
 local function toggleNoclip()
     noclip = not noclip
     if noclip then
@@ -104,70 +135,54 @@ local function toggleNoclip()
     end
 end
 
--- ===== ESP FUNKCJE (MM2) =====
-local function removeESP(target)
-    local char = target.Character
-    if char then
-        local highlight = char:FindFirstChild("ESP_Highlight")
-        if highlight then highlight:Destroy() end
-    end
-end
-
-local function clearESP()
-    for _, target in ipairs(Players:GetPlayers()) do
-        removeESP(target)
-    end
-    espHighlights = {}
-end
-
+-- ===== ESP =====
 local function updateESP()
     for _, target in ipairs(Players:GetPlayers()) do
         if target == player then continue end
         
         local char = target.Character
         if not char or not char.Parent then
-            removeESP(target)
+            local h = espCache[target]
+            if h then
+                pcall(h.Destroy, h)
+                espCache[target] = nil
+            end
             continue
         end
         
-        -- Sprawdź broń
         local tool = char:FindFirstChildOfClass("Tool")
-        local isMurderer = false
-        local isSheriff = false
+        local color = nil
         
         if tool then
-            local toolName = tool.Name:lower()
-            if toolName:find("knife") or toolName:find("dagger") or toolName:find("blade") then
-                isMurderer = true
-            elseif toolName:find("gun") or toolName:find("pistol") or toolName:find("revolver") then
-                isSheriff = true
+            local name = tool.Name:lower()
+            if name:find("knife") or name:find("dagger") or name:find("blade") then
+                color = Color3.fromRGB(255, 0, 0) -- Czerwony
+            elseif name:find("gun") or name:find("pistol") or name:find("revolver") then
+                color = Color3.fromRGB(0, 128, 255) -- Niebieski
             end
         end
         
-        -- Ustaw kolor
-        local color
-        if isMurderer then
-            color = Color3.new(1, 0, 0) -- Czerwony
-        elseif isSheriff then
-            color = Color3.new(0, 0.5, 1) -- Niebieski
+        if color then
+            local highlight = espCache[target]
+            if highlight and highlight.Parent then
+                highlight.Color3 = color
+            else
+                highlight = Instance.new("Highlight")
+                highlight.Name = "ESP_Highlight"
+                highlight.Parent = char
+                highlight.FillColor = color
+                highlight.FillTransparency = 0.3
+                highlight.OutlineColor = color
+                highlight.OutlineTransparency = 0
+                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                espCache[target] = highlight
+            end
         else
-            removeESP(target)
-            continue
-        end
-        
-        -- Dodaj highlight
-        local highlight = char:FindFirstChild("ESP_Highlight")
-        if highlight then
-            highlight.Color3 = color
-        else
-            highlight = Instance.new("Highlight")
-            highlight.Name = "ESP_Highlight"
-            highlight.Parent = char
-            highlight.FillColor = color
-            highlight.FillTransparency = 0.4
-            highlight.OutlineColor = color
-            highlight.OutlineTransparency = 0
-            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            local h = espCache[target]
+            if h then
+                pcall(h.Destroy, h)
+                espCache[target] = nil
+            end
         end
     end
 end
@@ -175,23 +190,13 @@ end
 local function enableESP()
     if espEnabled then return end
     espEnabled = true
-    print("[ESP] ON (MM2)")
+    print("[ESP] ON")
     
-    local con = RunService.Heartbeat:Connect(function()
-        if not espEnabled then return end
-        updateESP()
+    espCon = RunService.Heartbeat:Connect(function()
+        if espEnabled then
+            updateESP()
+        end
     end)
-    table.insert(espConnections, con)
-    
-    -- Nowi gracze
-    local playerAddedCon = Players.PlayerAdded:Connect(function(newPlayer)
-        newPlayer.CharacterAdded:Connect(function()
-            if espEnabled then updateESP() end
-        end)
-    end)
-    table.insert(espConnections, playerAddedCon)
-    
-    updateESP()
 end
 
 local function disableESP()
@@ -199,18 +204,21 @@ local function disableESP()
     espEnabled = false
     print("[ESP] OFF")
     
-    for _, con in ipairs(espConnections) do
-        con:Disconnect()
+    if espCon then
+        espCon:Disconnect()
+        espCon = nil
     end
-    espConnections = {}
-    clearESP()
+    
+    for _, h in pairs(espCache) do
+        pcall(h.Destroy, h)
+    end
+    espCache = {}
 end
 
--- ===== OBSŁUGA KLAWISZY =====
+-- ===== KLAWISZE =====
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     
-    -- X = FLY
     if input.KeyCode == Enum.KeyCode.X then
         if flying then
             stopFly()
@@ -221,12 +229,10 @@ UserInputService.InputBegan:Connect(function(input, gp)
         end
     end
     
-    -- Z = NOCLIP
     if input.KeyCode == Enum.KeyCode.Z then
         toggleNoclip()
     end
     
-    -- C = ESP
     if input.KeyCode == Enum.KeyCode.C then
         if espEnabled then
             disableESP()
@@ -257,15 +263,15 @@ player.CharacterAdded:Connect(function(newChar)
     end
     if espEnabled then
         disableESP()
-        -- Poczekaj chwilę i włącz ESP ponownie
-        task.wait(0.5)
+        task.wait(0.3)
         enableESP()
     end
 end)
 
 -- ===== START =====
-print("=== MEGA SKRYPT ZAŁADOWANY ===")
-print("[X] = FLY (WASD + Spacja/Shift)")
-print("[Z] = NOCLIP (przechodzenie przez ściany)")
-print("[C] = ESP MM2 (Morderca = Czerwony, Szeryf = Niebieski)")
-print("=== POWODZENIA ===")
+createWatermark()
+
+print("=== FINAL VERSION + WATERMARK ZAŁADOWANA ===")
+print("[X] FLY | [Z] NOCLIP | [C] ESP")
+print("ESP: Czerwony = Morderca, Niebieski = Szeryf")
+print("WATERMARK: KapitanBomba HACK (prawy górny róg)")
