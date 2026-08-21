@@ -1,8 +1,7 @@
 --[[
     FINAL VERSION – FLY + NOCLIP + ESP (MM2) + WATERMARK
     X = FLY | Z = NOCLIP | C = ESP
-    Czerwony = Morderca | Niebieski = Szeryf | Zielony = Niewinni (100)
-    Prędkość lotu: 50 (wszystkie kierunki)
+    ESP odświeża się co 2 sekundy, zasięg 500 studów
 ]]
 
 local player = game.Players.LocalPlayer
@@ -73,7 +72,7 @@ end
 -- ===== FLY =====
 local flying = false
 local flyCon = nil
-local flySpeed = 50  -- 🔥 PRĘDKOŚĆ 50
+local flySpeed = 50
 
 -- ===== NOCLIP =====
 local noclip = false
@@ -83,10 +82,124 @@ local noclipCon = nil
 local espEnabled = false
 local espCon = nil
 local espCache = {}
-local espMemory = {}
-local ROLE_TIMEOUT = 20
+local roleMemory = {}
+local ESP_REFRESH = 2 -- co 2 sekundy
+local ESP_RANGE = 500 -- 500 studów
 
--- ===== FLY Z PELNYM STEROWANIEM 3D =====
+local function updateESP()
+    for _, target in ipairs(Players:GetPlayers()) do
+        if target == player then continue end
+        
+        local char = target.Character
+        local color = nil
+        
+        if char and char.Parent then
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then
+                local name = tool.Name:lower()
+                if name:find("knife") or name:find("dagger") or name:find("blade") then
+                    color = Color3.fromRGB(255, 0, 0)
+                    roleMemory[target] = "murderer"
+                elseif name:find("gun") or name:find("pistol") or name:find("revolver") then
+                    color = Color3.fromRGB(0, 128, 255)
+                    roleMemory[target] = "sheriff"
+                end
+            end
+        end
+        
+        if not color and roleMemory[target] then
+            if roleMemory[target] == "murderer" then
+                color = Color3.fromRGB(255, 0, 0)
+            elseif roleMemory[target] == "sheriff" then
+                color = Color3.fromRGB(0, 128, 255)
+            end
+        end
+        
+        if not color then
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root and player.Character then
+                local playerRoot = player.Character:FindFirstChild("HumanoidRootPart")
+                if playerRoot then
+                    local dist = (root.Position - playerRoot.Position).Magnitude
+                    if dist < ESP_RANGE then
+                        color = Color3.fromRGB(0, 255, 0)
+                    end
+                end
+            end
+        end
+        
+        if color then
+            local highlight = espCache[target]
+            if highlight and highlight.Parent then
+                highlight.FillColor = color
+                highlight.OutlineColor = color
+            else
+                highlight = Instance.new("Highlight")
+                highlight.Name = "ESP_Highlight"
+                highlight.Parent = char or workspace
+                highlight.FillColor = color
+                highlight.FillTransparency = 0.3
+                highlight.OutlineColor = color
+                highlight.OutlineTransparency = 0
+                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                espCache[target] = highlight
+            end
+        else
+            local h = espCache[target]
+            if h then
+                pcall(h.Destroy, h)
+                espCache[target] = nil
+            end
+        end
+    end
+end
+
+player.CharacterAdded:Connect(function()
+    roleMemory = {}
+    for _, h in pairs(espCache) do
+        pcall(h.Destroy, h)
+    end
+    espCache = {}
+end)
+
+local function enableESP()
+    if espEnabled then return end
+    espEnabled = true
+    print("[ESP] ON (odświeżanie co 2s, zasięg 500)")
+    
+    -- Pierwsze odświeżenie od razu
+    updateESP()
+    
+    -- Potem co 2 sekundy
+    espCon = RunService.Heartbeat:Connect(function()
+        if espEnabled then
+            -- Odświeżaj tylko co 2 sekundy
+            if not espCon._lastUpdate or tick() - espCon._lastUpdate > ESP_REFRESH then
+                updateESP()
+                espCon._lastUpdate = tick()
+            end
+        end
+    end)
+end
+
+local function disableESP()
+    if not espEnabled then return end
+    espEnabled = false
+    print("[ESP] OFF")
+    
+    if espCon then
+        espCon:Disconnect()
+        espCon = nil
+    end
+    
+    for _, h in pairs(espCache) do
+        pcall(h.Destroy, h)
+    end
+    espCache = {}
+    roleMemory = {}
+end
+
+-- ===== FLY =====
 local function startFly()
     if flying then return end
     flying = true
@@ -99,31 +212,20 @@ local function startFly()
             return
         end
         
-        -- Rotacja postaci w kierunku kamery
         local camLook = camera.CFrame.LookVector
         local targetCF = CFrame.lookAt(rootPart.Position, rootPart.Position + camLook)
         rootPart.CFrame = targetCF
         
-        -- Sterowanie 3D (W/S/A/D)
         local input = UserInputService
         local move = Vector3.new(0, 0, 0)
         local forward = rootPart.CFrame.LookVector
         local right = rootPart.CFrame.RightVector
         
-        if input:IsKeyDown(Enum.KeyCode.W) then
-            move = move + forward
-        end
-        if input:IsKeyDown(Enum.KeyCode.S) then
-            move = move - forward
-        end
-        if input:IsKeyDown(Enum.KeyCode.A) then
-            move = move - right
-        end
-        if input:IsKeyDown(Enum.KeyCode.D) then
-            move = move + right
-        end
+        if input:IsKeyDown(Enum.KeyCode.W) then move = move + forward end
+        if input:IsKeyDown(Enum.KeyCode.S) then move = move - forward end
+        if input:IsKeyDown(Enum.KeyCode.A) then move = move - right end
+        if input:IsKeyDown(Enum.KeyCode.D) then move = move + right end
         
-        -- Normalizacja i prędkość
         if move.Magnitude > 0 then
             move = move.Unit * flySpeed
         end
@@ -168,103 +270,6 @@ local function toggleNoclip()
             end
         end
     end
-end
-
--- ===== ESP Z TRZEMA KOLORAMI =====
-local function updateESP()
-    for _, target in ipairs(Players:GetPlayers()) do
-        if target == player then continue end
-        
-        local char = target.Character
-        local color = nil
-        
-        if char and char.Parent then
-            local tool = char:FindFirstChildOfClass("Tool")
-            if tool then
-                local name = tool.Name:lower()
-                if name:find("knife") or name:find("dagger") or name:find("blade") then
-                    color = Color3.fromRGB(255, 0, 0)
-                    espMemory[target] = {color = color, time = os.time() + ROLE_TIMEOUT}
-                elseif name:find("gun") or name:find("pistol") or name:find("revolver") then
-                    color = Color3.fromRGB(0, 128, 255)
-                    espMemory[target] = {color = color, time = os.time() + ROLE_TIMEOUT}
-                end
-            else
-                local root = char:FindFirstChild("HumanoidRootPart")
-                if root and player.Character then
-                    local playerRoot = player.Character:FindFirstChild("HumanoidRootPart")
-                    if playerRoot then
-                        local dist = (root.Position - playerRoot.Position).Magnitude
-                        if dist < 100 then
-                            color = Color3.fromRGB(0, 255, 0)
-                            espMemory[target] = {color = color, time = os.time() + ROLE_TIMEOUT}
-                        end
-                    end
-                end
-            end
-        end
-        
-        if not color and espMemory[target] then
-            if os.time() < espMemory[target].time then
-                color = espMemory[target].color
-            else
-                espMemory[target] = nil
-            end
-        end
-        
-        if color then
-            local highlight = espCache[target]
-            if highlight and highlight.Parent then
-                highlight.FillColor = color
-                highlight.OutlineColor = color
-            else
-                highlight = Instance.new("Highlight")
-                highlight.Name = "ESP_Highlight"
-                highlight.Parent = char or workspace
-                highlight.FillColor = color
-                highlight.FillTransparency = 0.3
-                highlight.OutlineColor = color
-                highlight.OutlineTransparency = 0
-                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                espCache[target] = highlight
-            end
-        else
-            local h = espCache[target]
-            if h then
-                pcall(h.Destroy, h)
-                espCache[target] = nil
-            end
-        end
-    end
-end
-
-local function enableESP()
-    if espEnabled then return end
-    espEnabled = true
-    print("[ESP] ON (3 kolory, pamięć 20s, zasięg 100)")
-    
-    espCon = RunService.Heartbeat:Connect(function()
-        if espEnabled then
-            updateESP()
-        end
-    end)
-end
-
-local function disableESP()
-    if not espEnabled then return end
-    espEnabled = false
-    print("[ESP] OFF")
-    
-    if espCon then
-        espCon:Disconnect()
-        espCon = nil
-    end
-    
-    for _, h in pairs(espCache) do
-        pcall(h.Destroy, h)
-    end
-    espCache = {}
-    espMemory = {}
 end
 
 -- ===== KLAWISZE =====
@@ -325,5 +330,5 @@ createWatermark()
 
 print("=== FINAL VERSION + WATERMARK ZAŁADOWANA ===")
 print("[X] FLY | [Z] NOCLIP | [C] ESP")
-print("W/S/A/D = wszystkie kierunki z prędkością 50")
-print("Czerwony = Morderca | Niebieski = Szeryf | Zielony = Niewinni (100)")
+print("ESP odświeża się co 2 sekundy, zasięg 500 studów")
+print("Czerwony = Morderca | Niebieski = Szeryf | Zielony = Niewinni")
