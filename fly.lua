@@ -40,7 +40,7 @@ local function createWatermark()
     textLabel.BackgroundTransparency = 1
     textLabel.Text = "🔥 KapitanBomba HACK 🔥"
     textLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-    textLabel.TextSize = 22
+    textLabel.TextSize = 50
     textLabel.Font = Enum.Font.GothamBold
     textLabel.TextStrokeTransparency = 0.3
     textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
