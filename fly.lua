@@ -1,8 +1,8 @@
 --[[
-    FLY + NOCLIP + ESP (MM2) + ROTACJA + LOT W KIERUNKU PATRZENIA
+    FLY + NOCLIP + ESP (MM2) + ROTACJA + PELNE STEROWANIE 3D
     X = FLY | Z = NOCLIP | C = ESP
-    W = lecisz tam, gdzie patrzysz (góra/dół też)
-    Usunięto: Spacja (góra), Shift (dół)
+    W = przód (tam gdzie patrzysz) | S = tył | A/D = boki
+    Usunięto: Spacja (góra) i Shift (dół)
 ]]
 
 local player = game.Players.LocalPlayer
@@ -86,7 +86,7 @@ local espCache = {}
 local espMemory = {}
 local ROLE_TIMEOUT = 20
 
--- ===== FLY Z ROTACJĄ I LOTEM W KIERUNKU PATRZENIA =====
+-- ===== FLY Z PELNYM STEROWANIEM 3D =====
 local function startFly()
     if flying then return end
     flying = true
@@ -104,17 +104,38 @@ local function startFly()
         local targetCF = CFrame.lookAt(rootPart.Position, rootPart.Position + camLook)
         rootPart.CFrame = targetCF
         
-        -- 🔥 LOT TYLKO POD W (w kierunku patrzenia)
+        -- 🔥 PELNE STEROWANIE 3D (W/S/A/D)
         local input = UserInputService
         local move = Vector3.new(0, 0, 0)
         
+        -- Kierunki względem postaci (która jest zrotowana za kamerą)
+        local forward = rootPart.CFrame.LookVector
+        local right = rootPart.CFrame.RightVector
+        local up = rootPart.CFrame.UpVector
+        
+        -- W = przód (tam gdzie patrzysz)
         if input:IsKeyDown(Enum.KeyCode.W) then
-            local forward = rootPart.CFrame.LookVector
-            move = move + forward * flySpeed
+            move = move + forward
+        end
+        -- S = tył
+        if input:IsKeyDown(Enum.KeyCode.S) then
+            move = move - forward
+        end
+        -- A = lewo
+        if input:IsKeyDown(Enum.KeyCode.A) then
+            move = move - right
+        end
+        -- D = prawo
+        if input:IsKeyDown(Enum.KeyCode.D) then
+            move = move + right
         end
         
         -- 🔥 USUNIĘTO: Spacja (góra) i Shift (dół)
-        -- Teraz tylko W steruje lotem w kierunku patrzenia
+        -- Teraz W/S/A/D sterują lotem w 3D
+        
+        if move.Magnitude > 0 then
+            move = move.Unit * flySpeed
+        end
         
         rootPart.Velocity = move
     end)
@@ -312,6 +333,6 @@ createWatermark()
 
 print("=== FINAL VERSION + WATERMARK ZAŁADOWANA ===")
 print("[X] FLY | [Z] NOCLIP | [C] ESP")
-print("W = lecisz tam, gdzie patrzysz (góra/dół też)")
+print("W = przód | S = tył | A/D = boki (w 3D)")
 print("Usunięto: Spacja (góra) i Shift (dół)")
 print("Czerwony = Morderca | Niebieski = Szeryf | Zielony = Niewinni (100)")
