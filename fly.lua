@@ -1,7 +1,7 @@
 --[[
     Skrypt latania + noclip
     X = latanie (W/S przód/tył, A/D lewo/prawo, Spacja góra, Shift dół)
-    Z = noclip (przechodzenie przez ściany)
+    Z = noclip (przechodzenie przez ściany) - włącz/wyłącz
 ]]
 
 local player = game.Players.LocalPlayer
@@ -19,9 +19,10 @@ local noclipConnection = nil
 -- Funkcja do włączania/wyłączania noclipa
 local function toggleNoclip()
     noclipEnabled = not noclipEnabled
+    
     if noclipEnabled then
         print("Noclip włączony")
-        -- Wyłącz kolizję dla wszystkich części postaci
+        -- Wyłącz kolizję dla WSZYSTKICH części postaci
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
@@ -39,7 +40,7 @@ local function toggleNoclip()
             noclipConnection:Disconnect()
             noclipConnection = nil
         end
-        -- Przywróć kolizję dla wszystkich części
+        -- Przywróć kolizję dla WSZYSTKICH części
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = true
@@ -126,7 +127,6 @@ player.CharacterAdded:Connect(function(newChar)
     rootPart = character:WaitForChild("HumanoidRootPart")
     if flying then stopFly() end
     if noclipEnabled then
-        -- Wyłącz noclip przy respawnie (żeby uniknąć bugów)
         noclipEnabled = false
         if noclipConnection then
             noclipConnection:Disconnect()
@@ -136,5 +136,5 @@ player.CharacterAdded:Connect(function(newChar)
 end)
 
 print("Skrypt załadowany!")
-print("X = latanie | Z = noclip")
+print("X = latanie | Z = noclip (włącz/wyłącz)")
 print("W = przód, S = tył, A/D = lewo/prawo, Spacja = góra, Shift = dół")
