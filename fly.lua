@@ -83,26 +83,37 @@ local espEnabled = false
 local espCon = nil
 local espCache = {}
 local roleMemory = {}
-local ESP_REFRESH = 2 -- co 2 sekundy
-local ESP_RANGE = 500 -- 500 studów
+local ESP_REFRESH = 2
+local ESP_RANGE = 500
 
 local function updateESP()
     for _, target in ipairs(Players:GetPlayers()) do
         if target == player then continue end
         
         local char = target.Character
+        if not char or not char.Parent then
+            local h = espCache[target]
+            if h then
+                pcall(h.Destroy, h)
+                espCache[target] = nil
+            end
+            continue
+        end
+        
         local color = nil
         
-        if char and char.Parent then
-            local tool = char:FindFirstChildOfClass("Tool")
-            if tool then
-                local name = tool.Name:lower()
-                if name:find("knife") or name:find("dagger") or name:find("blade") then
+        -- 🔥 SZUKAMY BRONI W CAŁEJ POSTACI
+        for _, child in ipairs(char:GetDescendants()) do
+            if child:IsA("Tool") then
+                local name = child.Name:lower()
+                if name:find("knife") or name:find("dagger") or name:find("blade") or name:find("scythe") or name:find("sword") or name:find("axe") then
                     color = Color3.fromRGB(255, 0, 0)
                     roleMemory[target] = "murderer"
-                elseif name:find("gun") or name:find("pistol") or name:find("revolver") then
+                    break
+                elseif name:find("gun") or name:find("pistol") or name:find("revolver") or name:find("rifle") or name:find("shotgun") then
                     color = Color3.fromRGB(0, 128, 255)
                     roleMemory[target] = "sheriff"
+                    break
                 end
             end
         end
@@ -116,7 +127,7 @@ local function updateESP()
         end
         
         if not color then
-            local root = char and char:FindFirstChild("HumanoidRootPart")
+            local root = char:FindFirstChild("HumanoidRootPart")
             if root and player.Character then
                 local playerRoot = player.Character:FindFirstChild("HumanoidRootPart")
                 if playerRoot then
@@ -136,7 +147,7 @@ local function updateESP()
             else
                 highlight = Instance.new("Highlight")
                 highlight.Name = "ESP_Highlight"
-                highlight.Parent = char or workspace
+                highlight.Parent = char
                 highlight.FillColor = color
                 highlight.FillTransparency = 0.3
                 highlight.OutlineColor = color
@@ -167,13 +178,9 @@ local function enableESP()
     espEnabled = true
     print("[ESP] ON (odświeżanie co 2s, zasięg 500)")
     
-    -- Pierwsze odświeżenie od razu
     updateESP()
-    
-    -- Potem co 2 sekundy
     espCon = RunService.Heartbeat:Connect(function()
         if espEnabled then
-            -- Odświeżaj tylko co 2 sekundy
             if not espCon._lastUpdate or tick() - espCon._lastUpdate > ESP_REFRESH then
                 updateESP()
                 espCon._lastUpdate = tick()
