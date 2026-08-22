@@ -1,5 +1,5 @@
 --[[
-    FLY (X) + NOCLIP (Z) + ESP (C) – BEZ GUI
+    FLY (X) + NOCLIP (Z) + ESP (C) + TURBO FLY 250 (V) + SPEED HACK 23 (B)
 ]]
 
 local player = game.Players.LocalPlayer
@@ -15,6 +15,8 @@ local UserInputService = game:GetService("UserInputService")
 local flying = false
 local flyCon = nil
 local flySpeed = 50
+local turboFly = false
+local turboSpeed = 250
 
 local noclip = false
 local noclipCon = nil
@@ -24,6 +26,10 @@ local espCon = nil
 local espCache = {}
 local ESP_REFRESH = 0.5
 local ESP_RANGE = 500
+
+local speedHack = false
+local speedValue = 23
+local originalSpeed = 16
 
 -- ===== FLY =====
 local function startFly()
@@ -54,7 +60,8 @@ local function startFly()
         if input:IsKeyDown(Enum.KeyCode.D) then move = move + right end
         
         if move.Magnitude > 0 then
-            move = move.Unit * flySpeed
+            local speed = turboFly and turboSpeed or flySpeed
+            move = move.Unit * speed
         end
         
         rootPart.Velocity = move
@@ -217,6 +224,18 @@ local function disableESP()
     espCache = {}
 end
 
+-- ===== SPEED HACK =====
+local function toggleSpeedHack()
+    speedHack = not speedHack
+    if speedHack then
+        humanoid.WalkSpeed = speedValue
+        print("[SPEED] ON – " .. speedValue)
+    else
+        humanoid.WalkSpeed = originalSpeed
+        print("[SPEED] OFF – " .. originalSpeed)
+    end
+end
+
 -- ===== KLAWISZE =====
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
@@ -239,6 +258,25 @@ UserInputService.InputBegan:Connect(function(input, gp)
         else
             enableESP()
         end
+    end
+    
+    -- V = turbo fly 250
+    if input.KeyCode == Enum.KeyCode.V then
+        if flying then
+            turboFly = not turboFly
+            if turboFly then
+                print("[TURBO] ON – prędkość 250")
+            else
+                print("[TURBO] OFF – prędkość 50")
+            end
+        else
+            print("[TURBO] Włącz najpierw Fly (X)")
+        end
+    end
+    
+    -- B = speed hack 23
+    if input.KeyCode == Enum.KeyCode.B then
+        toggleSpeedHack()
     end
 end)
 
@@ -266,8 +304,13 @@ player.CharacterAdded:Connect(function(newChar)
         task.wait(0.3)
         enableESP()
     end
+    if speedHack then
+        speedHack = false
+        humanoid.WalkSpeed = originalSpeed
+    end
 end)
 
 print("=== SKRYPT ZAŁADOWANY ===")
 print("X = FLY | Z = NOCLIP | C = ESP")
+print("V = TURBO FLY 250 | B = SPEED HACK 23")
 print("W/S/A/D = latanie (gdy Fly włączone)")
