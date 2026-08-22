@@ -1,13 +1,7 @@
 --[[
-    IRIS IMGUI – FLY (X) + NOCLIP (Z) + ESP (C) + FLING (J)
-    Wymaga: Iris v2.5.0+ (załadowane przez loadstring)
+    FLY (X) + NOCLIP (Z) + ESP (C) – BEZ GUI
 ]]
 
--- ===== ZAŁADOWANIE IRIS =====
-local Iris = loadstring(game:HttpGet("https://raw.githubusercontent.com/paradoxum-games/iris/main/out.lua"))()
-Iris:Init()
-
--- ===== STANY =====
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local rootPart = character:WaitForChild("HumanoidRootPart")
@@ -17,29 +11,19 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- ===== FLY =====
+-- ===== STANY =====
 local flying = false
 local flyCon = nil
 local flySpeed = 50
 
--- ===== NOCLIP =====
 local noclip = false
 local noclipCon = nil
 
--- ===== ESP =====
 local espEnabled = false
 local espCon = nil
 local espCache = {}
 local ESP_REFRESH = 0.5
 local ESP_RANGE = 500
-
--- ===== FLING =====
-local selectedPlayer = nil
-local flingEnabled = false
-
--- ===== IRIS STANY =====
-local menuVisible = Iris.State(true)
-local selectedPlayerState = Iris.State(nil)
 
 -- ===== FLY =====
 local function startFly()
@@ -233,107 +217,16 @@ local function disableESP()
     espCache = {}
 end
 
--- ===== FLING =====
-local function flingPlayer(target)
-    if not target or target == player then return end
-    
-    local char = target.Character
-    if not char or not char.Parent then return end
-    
-    local targetRoot = char:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then return end
-    
-    for i = 1, 5 do
-        targetRoot.Velocity = Vector3.new(0, 50, 0) * (i * 10)
-        task.wait(0.05)
-    end
-    
-    targetRoot.Velocity = Vector3.new(0, 100, 0) + Vector3.new(50, 0, 50)
-    task.wait(0.1)
-    targetRoot.Velocity = Vector3.new(0, 200, 0) + Vector3.new(-50, 0, -50)
-    
-    print("[FLING] " .. target.Name .. " został wyrzucony!")
-end
-
--- ===== IRIS MENU =====
-local function createIrisMenu()
-    -- Ukryj domyślny kursor Robloxa, żeby nie przeszkadzał
-    UserInputService.MouseIconEnabled = false
-    
-    Iris:Connect(function()
-        -- Główne okno – sterowanie
-        Iris.Window({ "KapitanBomba HACK" }, { 
-            size = Iris.State(Vector2.new(350, 450)),
-            position = Iris.State(Vector2.new(100, 100))
-        })
-        
-        -- Sekcja: Sterowanie
-        Iris.Separator()
-        Iris.Text({ "STEROWANIE:" })
-        Iris.Text({ "X = Fly | Z = Noclip | C = ESP" })
-        Iris.Separator()
-        
-        -- Sekcja: Status
-        Iris.Text({ "STATUS:" })
-        Iris.Text({ "Fly: " .. (flying and "ON" or "OFF") })
-        Iris.Text({ "Noclip: " .. (noclip and "ON" or "OFF") })
-        Iris.Text({ "ESP: " .. (espEnabled and "ON" or "OFF") })
-        Iris.Separator()
-        
-        -- Sekcja: Wybór gracza do flinga
-        Iris.Text({ "WYBIERZ GRACZA DO FLINGA:" })
-        
-        -- Lista graczy (przyciski)
-        local players = {}
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= player then
-                table.insert(players, p)
-            end
-        end
-        
-        -- Sortuj alfabetycznie
-        table.sort(players, function(a, b) return a.Name < b.Name end)
-        
-        for _, p in ipairs(players) do
-            local btnText = p.Name
-            if selectedPlayer == p then
-                btnText = "▶ " .. p.Name .. " ◀"
-            end
-            
-            local clicked = Iris.Button({ btnText })
-            if clicked then
-                selectedPlayer = p
-                print("[MENU] Wybrano: " .. p.Name)
-            end
-        end
-        
-        Iris.Separator()
-        
-        -- Przycisk FLING
-        local flingBtn = Iris.Button({ "🔥 FLING WYBRANEGO GRACZA" })
-        if flingBtn then
-            if selectedPlayer then
-                flingPlayer(selectedPlayer)
-            else
-                print("[MENU] Brak wybranego gracza!")
-            end
-        end
-        
-        -- Jeśli nie ma graczy
-        if #players == 0 then
-            Iris.Text({ "❌ Brak innych graczy na serwerze" })
-        end
-        
-        Iris.End()
-    end)
-end
-
 -- ===== KLAWISZE =====
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     
     if input.KeyCode == Enum.KeyCode.X then
-        if flying then stopFly() else startFly() end
+        if flying then
+            stopFly()
+        else
+            startFly()
+        end
     end
     
     if input.KeyCode == Enum.KeyCode.Z then
@@ -341,12 +234,11 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
     
     if input.KeyCode == Enum.KeyCode.C then
-        if espEnabled then disableESP() else enableESP() end
-    end
-    
-    -- J = pokaż/ukryj menu Iris (domyślnie widoczne)
-    if input.KeyCode == Enum.KeyCode.J then
-        menuVisible:set(not menuVisible:get())
+        if espEnabled then
+            disableESP()
+        else
+            enableESP()
+        end
     end
 end)
 
@@ -376,10 +268,6 @@ player.CharacterAdded:Connect(function(newChar)
     end
 end)
 
--- ===== START =====
-createIrisMenu()
-
-print("=== IRIS MENU ZAŁADOWANE ===")
+print("=== SKRYPT ZAŁADOWANY ===")
 print("X = FLY | Z = NOCLIP | C = ESP")
-print("J = pokaż/ukryj menu")
-print("Wybierz gracza w menu i kliknij FLING")
+print("W/S/A/D = latanie (gdy Fly włączone)")
